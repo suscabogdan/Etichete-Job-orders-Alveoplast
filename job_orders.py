@@ -242,7 +242,7 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
             copy_range(template_ws, template_ws, src_range, dest_cell)
 
     # Write the correct information into the Job B labels
-    if job_b_row:
+    if job_b_row and current_b_row:
         for i in range(num_pallets_b):
             row = 79 + i * (49 - 16 + 2)
             template_ws.cell(row=row, column=34 - 7).value = source_ws.cell(row=current_b_row, column=14).value
@@ -314,20 +314,11 @@ if current_a_row and current_a_row not in consecutive_a_rows:
     source_value_m = source_ws["M" + str(current_a_row)].value
     num_pallets_a = int(source_value_p / source_value_m) if source_value_m else 0
     remaining_sheets_a = source_value_p - num_pallets_a * source_value_m
-    
-    # Open the source workbook and get the data for Job A and Job B
-    src_wb = openpyxl.load_workbook('EVIDENTA COMANDA ALVEOPLAST.xlsx')
-    src_ws = src_wb['Sheet1']
-    job_a_row = src_ws[2]  # Modify this line to get the correct row for Job A
-    job_b_row = src_ws[3]  # Modify this line to get the correct row for Job B
 
     # Call the populate_and_save_template function
     if current_b_row:
         populate_and_save_template(source_ws, current_a_row, current_b_row, num_pallets_a, remaining_sheets_a, num_pallets_b, remaining_sheets_b)
     else:
         populate_and_save_template(source_ws, current_a_row, None, num_pallets_a, remaining_sheets_a)
-
-
-
 
 print("All files created successfully!")
