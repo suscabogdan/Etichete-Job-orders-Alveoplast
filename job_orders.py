@@ -1,6 +1,7 @@
 import openpyxl
 import os
 import datetime
+from copy import copy
 
 def get_top_left_cell_of_merged_region(worksheet, cell_address):
     """Identify the top-left cell of a merged region."""
@@ -24,6 +25,23 @@ for row in range(start_row, source_ws.max_row + 1):
     if not source_ws[col_to_check + str(row)].value:
         end_row = row - 1
         break
+
+def copy_range(src_ws, dest_ws, src_range, dest_cell):
+    rows = src_ws[src_range]
+    dest_cell = dest_ws[dest_cell]
+    for i, row in enumerate(rows):
+        for j, cell in enumerate(row):
+            dest_cell.offset(i, j).value = cell.value
+            if cell.has_style:
+                dest_cell.offset(i, j)._style = copy(cell._style)
+
+# def copy_images(src_ws, dest_ws, offset_left, offset_top):
+#     images = src_ws._images
+#     for img in images:
+#         img_copy = copy(img)
+#         img_copy.left += offset_left
+#         img_copy.top += offset_top
+#         dest_ws.add_image(img_copy)
 
 # Mapping for Job B
 mapping = {
@@ -64,7 +82,7 @@ def sanitize_filename(filename):
     sanitized_name = ''.join(char if char.isalnum() or char in [' ', '_'] else '-' for char in filename)
     return sanitized_name
 
-def populate_and_save_template(job_a_row, job_b_row):
+def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sheets_a, num_pallets_b=None, remaining_sheets_b=None):
     template_wb = openpyxl.load_workbook('JO&EP Template.xlsx')
     template_ws = template_wb["SABLON"]
 
@@ -149,7 +167,7 @@ def populate_and_save_template(job_a_row, job_b_row):
             "D34": "Virgin PPC3600",
             "D35": "TALC"
         },
-        "ESD": {
+        "ESDt": {
             "C32": "27%",
             "C33": "20%",
             "C36": "53%",
@@ -163,7 +181,7 @@ def populate_and_save_template(job_a_row, job_b_row):
             "C34": "2%",
             "D32": "Virgin PPC3600",
             "D33": "REGRANULAT",
-            "D34": "CULOARE/"
+            "D34": "CULOARE/" + source_ws["S" + str(job_a_row)].value
         },
         "E": {
             "C32": "13%",
@@ -173,7 +191,7 @@ def populate_and_save_template(job_a_row, job_b_row):
             "C36": "20%",
             "D32": "Virgin PPC3600",
             "D33": "REGRANULAT A",
-            "D34": "CULOARE/",
+            "D34": "CULOARE/" + source_ws["S" + str(job_a_row)].value,
             "D35": "1 parte TALC + 3 parti Carbonat",
             "D36": "REGRANULAT B"
         }
@@ -191,6 +209,39 @@ def populate_and_save_template(job_a_row, job_b_row):
         if r_value_b in r_mapping:
             for cell, value in r_mapping[r_value_b].items():
                 template_ws[cell] = value
+
+    # Copy and paste the Job A template the correct number of times
+    for i in range(num_pallets_a):
+        # Copy the Job A template
+        src_range = "U16:AE49"
+        dest_cell = "U" + str(51 + i * (49 - 16 + 2))
+        copy_range(template_ws, template_ws, src_range, dest_cell)
+        
+        # Write the correct information into the label
+        template_ws[dest_cell].offset(0, 29).value = f"Palet {i + 1}/{num_pallets_a}"
+        if i == num_pallets_a - 1 and remaining_sheets_a > 0:
+            template_ws[dest_cell].offset(0, 30).value = remaining_sheets_a
+        
+        # offset_left = template_ws.column_dimensions['U'].width * i * 6  # 6 is the width of one label in columns
+        # offset_top = 0
+        # copy_images(template_ws, template_ws, offset_left, offset_top)
+    
+    # Copy and paste the Job B template the correct number of times
+    if job_b_row:
+        for i in range(num_pallets_b):
+            # Copy the Job B template
+            src_range = "AG16:AQ49"
+            dest_cell = "AG" + str(51 + i * (49 - 16 + 2))
+            copy_range(template_ws, template_ws, src_range, dest_cell)
+            
+            # Write the correct information into the label
+            template_ws[dest_cell].offset(0, 29).value = f"Palet {i + 1}/{num_pallets_b}"
+            if i == num_pallets_b - 1 and remaining_sheets_b > 0:
+                template_ws[dest_cell].offset(0, 30).value = remaining_sheets_b
+            
+            # offset_left = template_ws.column_dimensions['U'].width * i * 6  # 6 is the width of one label in columns
+            # offset_top = 0
+            # copy_images(template_ws, template_ws, offset_left, offset_top)
 
     # Code for naming and saving the file
     client = source_ws["H" + str(job_a_row)].value or "Unknown"
@@ -225,14 +276,32 @@ for row in range(start_row, end_row + 1):
     
     if job_type == 'A':
         if current_a_row:
-            populate_and_save_template(current_a_row, None)
+            # Calculate the number of pallets and remaining sheets for Job A
+            source_value_p = source_ws["P" + str(current_a_row)].value
+            source_value_m = source_ws["M" + str(current_a_row)].value
+            num_pallets_a = int(source_value_p / source_value_m) if source_value_m else 0
+            remaining_sheets_a = source_value_p - num_pallets_a * source_value_m
+            
+            populate_and_save_template(current_a_row, None, num_pallets_a, remaining_sheets_a)
             consecutive_a_rows.append(current_a_row)
         current_a_row = row
 
     elif job_type == 'B' and current_a_row:
-        populate_and_save_template(current_a_row, row)
+        # Calculate the number of pallets and remaining sheets for Job B
+        source_value_p = source_ws["P" + str(row)].value
+        source_value_m = source_ws["M" + str(row)].value
+        num_pallets_b = int(source_value_p / source_value_m) if source_value_m else 0
+        remaining_sheets_b = source_value_p - num_pallets_b * source_value_m
+        
+        populate_and_save_template(current_a_row, row, num_pallets_a, remaining_sheets_a, num_pallets_b, remaining_sheets_b)
 
 if current_a_row and current_a_row not in consecutive_a_rows:
-    populate_and_save_template(current_a_row, None)
+    # Calculate the number of pallets and remaining sheets for the last Job A
+    source_value_p = source_ws["P" + str(current_a_row)].value
+    source_value_m = source_ws["M" + str(current_a_row)].value
+    num_pallets_a = int(source_value_p / source_value_m) if source_value_m else 0
+    remaining_sheets_a = source_value_p - num_pallets_a * source_value_m
+    
+    populate_and_save_template(current_a_row, None, num_pallets_a, remaining_sheets_a)
 
 print("All files created successfully!")
