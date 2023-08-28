@@ -210,22 +210,28 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
             for cell, value in r_mapping[r_value_b].items():
                 template_ws[cell] = value
 
+    total_sheets_a = int(job_a_row['P'].value)
+    total_sheets_b = int(job_b_row['P'].value) if job_b_row else 0
+
     # Copy and paste the Job A template the correct number of times
     for i in range(num_pallets_a):
         # Copy the Job A template
         src_range = "U16:AE49"
         dest_cell = "U" + str(51 + i * (49 - 16 + 2))
         copy_range(template_ws, template_ws, src_range, dest_cell)
-        
-        # Write the correct information into the label
-        template_ws[dest_cell].offset(0, 29).value = f"Palet {i + 1}/{num_pallets_a}"
-        if i == num_pallets_a - 1 and remaining_sheets_a > 0:
-            template_ws[dest_cell].offset(0, 30).value = remaining_sheets_a
-        
-        # offset_left = template_ws.column_dimensions['U'].width * i * 6  # 6 is the width of one label in columns
-        # offset_top = 0
-        # copy_images(template_ws, template_ws, offset_left, offset_top)
-    
+
+   # Write the correct information into the Job A labels
+    for i in range(num_pallets_a):
+        row = 79 + i * (49 - 16 + 2)
+        template_ws.cell(row=row, column=22).value = f"Palet {i + 1}/{num_pallets_a}"
+        sheets_per_pallet = int(template_ws['G23'].value)
+        if i == num_pallets_a - 2:
+            remaining_sheets = total_sheets_a % sheets_per_pallet
+            if remaining_sheets > 0:
+                template_ws.cell(row=row, column=22 - 7).value = sheets_per_pallet + remaining_sheets
+        else:
+            template_ws.cell(row=row, column=22 - 7).value = sheets_per_pallet
+
     # Copy and paste the Job B template the correct number of times
     if job_b_row:
         for i in range(num_pallets_b):
@@ -233,15 +239,19 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
             src_range = "AG16:AQ49"
             dest_cell = "AG" + str(51 + i * (49 - 16 + 2))
             copy_range(template_ws, template_ws, src_range, dest_cell)
-            
-            # Write the correct information into the label
-            template_ws[dest_cell].offset(0, 29).value = f"Palet {i + 1}/{num_pallets_b}"
-            if i == num_pallets_b - 1 and remaining_sheets_b > 0:
-                template_ws[dest_cell].offset(0, 30).value = remaining_sheets_b
-            
-            # offset_left = template_ws.column_dimensions['U'].width * i * 6  # 6 is the width of one label in columns
-            # offset_top = 0
-            # copy_images(template_ws, template_ws, offset_left, offset_top)
+
+    # Write the correct information into the Job B labels
+    if job_b_row:
+        for i in range(num_pallets_b):
+            row = 79 + i * (49 - 16 + 2)
+            template_ws.cell(row=row, column=34).value = f"Palet {i + 1}/{num_pallets_b}"
+            sheets_per_pallet = int(template_ws['N23'].value)
+            if i == num_pallets_b - 2:
+                remaining_sheets = total_sheets_b % sheets_per_pallet
+                if remaining_sheets > 0:
+                    template_ws.cell(row=row, column=34 - 7).value = sheets_per_pallet + remaining_sheets
+            else:
+                template_ws.cell(row=row, column=34 - 7).value = sheets_per_pallet
 
     # Code for naming and saving the file
     client = source_ws["H" + str(job_a_row)].value or "Unknown"
@@ -302,6 +312,14 @@ if current_a_row and current_a_row not in consecutive_a_rows:
     num_pallets_a = int(source_value_p / source_value_m) if source_value_m else 0
     remaining_sheets_a = source_value_p - num_pallets_a * source_value_m
     
-    populate_and_save_template(current_a_row, None, num_pallets_a, remaining_sheets_a)
+    # Open the source workbook and get the data for Job A and Job B
+    src_wb = openpyxl.load_workbook('EVIDENTA COMANDA ALVEOPLAST.xlsx')
+    src_ws = src_wb['Sheet1']
+    job_a_row = src_ws[2]  # Modify this line to get the correct row for Job A
+    job_b_row = src_ws[3]  # Modify this line to get the correct row for Job B
+
+    # Call the populate_and_save_template function
+    populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sheets_a, num_pallets_b, remaining_sheets_b)
+
 
 print("All files created successfully!")
