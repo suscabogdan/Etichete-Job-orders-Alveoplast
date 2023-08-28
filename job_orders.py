@@ -1,7 +1,15 @@
 import openpyxl
 import os
 import datetime
+import math
 from copy import copy
+from openpyxl import load_workbook
+from openpyxl.drawing.image import Image as openpyxlImage
+from openpyxl.utils.cell import coordinate_to_tuple
+from openpyxl.utils.cell import coordinate_from_string
+from io import BytesIO
+from PIL import Image as PILImage
+from PIL import Image, ImageDraw
 
 def get_top_left_cell_of_merged_region(worksheet, cell_address):
     """Identify the top-left cell of a merged region."""
@@ -27,6 +35,8 @@ for row in range(start_row, source_ws.max_row + 1):
         break
 
 def copy_range(src_ws, dest_ws, src_range, dest_cell):
+    copied_images = []  # Create a list to store copied images
+    
     rows = src_ws[src_range]
     dest_cell = dest_ws[dest_cell]
     for i, row in enumerate(rows):
@@ -34,6 +44,11 @@ def copy_range(src_ws, dest_ws, src_range, dest_cell):
             dest_cell.offset(i, j).value = cell.value
             if cell.has_style:
                 dest_cell.offset(i, j)._style = copy(cell._style)
+
+# Create an array of images
+images = ["BGMalveoplast Logo.jpeg", "Energie Verde.jpeg", "PP.jpeg", "SARC.jpeg"]
+anchor_a = ['AD27', 'U45', 'X23', 'AD46']
+anchor_b = ['AP27', 'AG45', 'AJ23', 'AP46']
 
 # Mapping for Job B
 mapping = {
@@ -205,57 +220,115 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
     if job_a_row:
         for i in range(num_pallets_a):
             # Copy the Job A template
-            src_range = "U16:AE49"
-            dest_cell = "U" + str(51 + i * (49 - 16 + 2))
+            src_range = "U1:AE49"
+            dest_cell = "U" + str(51 + i * (49 - 16 + 2 + 15))
             copy_range(template_ws, template_ws, src_range, dest_cell)
 
     # Write the correct information into the Job A labels
     if job_a_row:
         for i in range(num_pallets_a):
-            row_v72 = 72 + i * (49 - 16 + 2)
-            row_v79 = 79 + i * (49 - 16 + 2)
-            row_AA79 = 79 + i * (49 - 16 + 2)
+            row_v72 = 72 + 15 + i * (49 - 16 + 2 + 15)
+            row_v79 = 79 + 15 + i * (49 - 16 + 2 + 15)
+            row_AA79 = 79 + 15 + i * (49 - 16 + 2 + 15)
 
             template_ws.cell(row=row_v72, column=22).value = source_ws.cell(row=current_a_row, column=7).value
             template_ws.cell(row=row_v79, column=22).value = i + 1
-            template_ws.cell(row=row_AA79, column=27).value = num_pallets_a
+            template_ws.cell(row=row_AA79, column=26).value = num_pallets_a
 
             sheets_per_pallet = int(template_ws['G23'].value)
         
-            if i == num_pallets_a - 2:
-                remaining_sheets = total_sheets_a % sheets_per_pallet
+            if i == num_pallets_a - 1:
+                remaining_sheets = total_sheets_a - (sheets_per_pallet * (num_pallets_a - 1))
                 if remaining_sheets > 0:
-                    template_ws.cell(row=row_v72, column=22).value = sheets_per_pallet + remaining_sheets
+                    template_ws.cell(row=row_v72, column=22).value = remaining_sheets
             else:
                 template_ws.cell(row=row_v72, column=22).value = sheets_per_pallet
+
 
     # Copy and paste the Job B template the correct number of times
     if job_b_row and current_b_row:
         for i in range(num_pallets_b):
             # Copy the Job B template
-            src_range = "AG16:AQ49"
-            dest_cell = "AG" + str(51 + i * (49 - 16 + 2))
+            src_range = "AG1:AQ49"
+            dest_cell = "AG" + str(51 + i * (49 - 16 + 2 + 15))
             copy_range(template_ws, template_ws, src_range, dest_cell)
 
     # Write the correct information into the Job B labels
     if job_b_row and current_b_row:
         for i in range(num_pallets_b):
-            row_ah72 = 72 + i * (49 - 16 + 2)
-            row_ah79 = 79 + i * (49 - 16 + 2)
-            row_AL79 = 79 + i * (49 - 16 + 2)
+            row_ah72 = 72 + 15 + i * (49 - 16 + 2 + 15)
+            row_ah79 = 79 + 15 + i * (49 - 16 + 2 + 15)
+            row_AL79 = 79 + 15 + i * (49 - 16 + 2 + 15)
 
             template_ws.cell(row=row_ah72, column=34 - 7).value = source_ws.cell(row=current_b_row, column=14).value
             template_ws.cell(row=row_ah79, column=34).value = i + 1
-            template_ws.cell(row=row_AL79, column=39).value = num_pallets_b
+            template_ws.cell(row=row_AL79, column=38).value = num_pallets_b
 
             sheets_per_pallet = int(source_ws.cell(row=current_b_row, column=14).value)
         
-            if i == num_pallets_b - 2:
-                remaining_sheets = total_sheets_b % sheets_per_pallet
+            if i == num_pallets_b - 1:
+                remaining_sheets = total_sheets_b - (sheets_per_pallet * (num_pallets_b - 1))
                 if remaining_sheets > 0:
-                    template_ws.cell(row=row_ah72, column=34).value = sheets_per_pallet + remaining_sheets
+                    template_ws.cell(row=row_ah72, column=34).value = remaining_sheets
             else:
                 template_ws.cell(row=row_ah72, column=34).value = sheets_per_pallet
+    
+    cell_interval = 50
+
+    for i in range(num_pallets_a + 1):
+        for j, (img_name, anchor) in enumerate(zip(images, anchor_a)):
+            # Compute the anchor for this repetition
+            col, row = coordinate_from_string(anchor)
+            row += cell_interval * i
+            new_anchor = f'{col}{row}'
+        
+            # Add image
+            img = openpyxlImage(img_name)
+        
+            if j == 0:
+                img.width = int(63 * 1.33)
+                img.height = int(310 * 1.33)
+            elif j == 1:
+                img.width = int(138 * 1.33)
+                img.height = int(92 * 1.33)
+            elif j == 2:
+                img.width = int(108 * 1.33)
+                img.height = int(109 * 1.33)
+            elif j == 3:
+                img.width = int(83 * 1.33)
+                img.height = int(73 * 1.33)
+        
+            img.anchor = new_anchor
+            template_ws.add_image(img)
+
+        if job_a_row and current_b_row:
+            for i in range(num_pallets_b + 1):
+                for j, (img_name, anchor) in enumerate(zip(images, anchor_b)):
+                    # Compute the anchor for this repetition
+                    col, row = coordinate_from_string(anchor)
+                    row += cell_interval * i
+                    new_anchor = f'{col}{row}'
+        
+                    # Add image
+                    img = openpyxlImage(img_name)
+        
+                    if j == 0:
+                        img.width = int(63 * 1.33)
+                        img.height = int(310 * 1.33)
+                    elif j == 1:
+                        img.width = int(138 * 1.33)
+                        img.height = int(92 * 1.33)
+                    elif j == 2:
+                        img.width = int(108 * 1.33)
+                        img.height = int(109 * 1.33)
+                    elif j == 3:
+                        img.width = int(83 * 1.33)
+                        img.height = int(73 * 1.33)
+        
+                    img.anchor = new_anchor
+                    template_ws.add_image(img)
+
+
 
     # Code for naming and saving the file
     client = source_ws["H" + str(job_a_row)].value or "Unknown"
@@ -286,15 +359,17 @@ current_a_row = None
 current_b_row = None
 consecutive_a_rows = []
 
-for row in range(start_row - 1, end_row + 1):
+for row in range(start_row, end_row + 1):
     job_type = source_ws["Q" + str(row)].value
+    current_a_row = row
     if job_type == 'A':
         if current_a_row:
-            # Calculate the number of pallets and remaining sheets for Job A
+           # Calculate the number of pallets and remaining sheets for Job A
             source_value_p = source_ws["P" + str(current_a_row)].value
             source_value_m = source_ws["M" + str(current_a_row)].value
-            num_pallets_a = int(source_value_p / source_value_m) if source_value_m else 0
+            num_pallets_a = math.ceil(source_value_p / source_value_m) if source_value_m else 0
             remaining_sheets_a = source_value_p - num_pallets_a * source_value_m
+
             
             populate_and_save_template(current_a_row, None, num_pallets_a, remaining_sheets_a)
             consecutive_a_rows.append(current_a_row)
@@ -304,7 +379,7 @@ for row in range(start_row - 1, end_row + 1):
         # Calculate the number of pallets and remaining sheets for Job B
         source_value_p = source_ws["P" + str(row)].value
         source_value_m = source_ws["M" + str(row)].value
-        num_pallets_b = int(source_value_p / source_value_m) if source_value_m else 0
+        num_pallets_b = math.ceil(source_value_p / source_value_m) if source_value_m else 0
         remaining_sheets_b = source_value_p - num_pallets_b * source_value_m
         
         populate_and_save_template(current_a_row, row, num_pallets_a, remaining_sheets_a, num_pallets_b, remaining_sheets_b)
