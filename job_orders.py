@@ -210,8 +210,8 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
             for cell, value in r_mapping[r_value_b].items():
                 template_ws[cell] = value
 
-    total_sheets_a = int(job_a_row['P'].value)
-    total_sheets_b = int(job_b_row['P'].value) if job_b_row else 0
+    total_sheets_a = int(source_ws.cell(row=job_a_row, column=16).value)
+    total_sheets_b = int(source_ws.cell(row=job_b_row, column=16).value) if job_b_row else 0
 
     # Copy and paste the Job A template the correct number of times
     for i in range(num_pallets_a):
@@ -223,6 +223,7 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
    # Write the correct information into the Job A labels
     for i in range(num_pallets_a):
         row = 79 + i * (49 - 16 + 2)
+        template_ws.cell(row=row, column=22).value = source_ws.cell(row=current_a_row, column=7).value
         template_ws.cell(row=row, column=22).value = f"Palet {i + 1}/{num_pallets_a}"
         sheets_per_pallet = int(template_ws['G23'].value)
         if i == num_pallets_a - 2:
@@ -244,8 +245,9 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
     if job_b_row:
         for i in range(num_pallets_b):
             row = 79 + i * (49 - 16 + 2)
+            template_ws.cell(row=row, column=34 - 7).value = source_ws.cell(row=current_b_row, column=14).value
             template_ws.cell(row=row, column=34).value = f"Palet {i + 1}/{num_pallets_b}"
-            sheets_per_pallet = int(template_ws['N23'].value)
+            sheets_per_pallet = int(source_ws.cell(row=current_b_row, column=14).value)
             if i == num_pallets_b - 2:
                 remaining_sheets = total_sheets_b % sheets_per_pallet
                 if remaining_sheets > 0:
@@ -279,6 +281,7 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
 
 # Main Loop Logic
 current_a_row = None
+current_b_row = None
 consecutive_a_rows = []
 
 for row in range(start_row, end_row + 1):
@@ -319,7 +322,12 @@ if current_a_row and current_a_row not in consecutive_a_rows:
     job_b_row = src_ws[3]  # Modify this line to get the correct row for Job B
 
     # Call the populate_and_save_template function
-    populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sheets_a, num_pallets_b, remaining_sheets_b)
+    if current_b_row:
+        populate_and_save_template(source_ws, current_a_row, current_b_row, num_pallets_a, remaining_sheets_a, num_pallets_b, remaining_sheets_b)
+    else:
+        populate_and_save_template(source_ws, current_a_row, None, num_pallets_a, remaining_sheets_a)
+
+
 
 
 print("All files created successfully!")
