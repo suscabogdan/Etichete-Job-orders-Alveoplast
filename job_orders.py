@@ -46,7 +46,7 @@ def copy_range(src_ws, dest_ws, src_range, dest_cell):
                 dest_cell.offset(i, j)._style = copy(cell._style)
 
 # Create an array of images
-images = ["BGMalveoplast Logo.jpeg", "Energie Verde.jpeg", "PP.jpeg", "SARC.jpeg"]
+images = ["Images/BGMalveoplast Logo.jpeg", "Images/Energie Verde.jpeg", "Images/PP.jpeg", "Images/SARC.jpeg"]
 anchor_a = ['AD27', 'U45', 'X23', 'AD46']
 anchor_b = ['AP27', 'AG45', 'AJ23', 'AP46']
 
@@ -90,6 +90,11 @@ def sanitize_filename(filename):
     return sanitized_name
 
 def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sheets_a, num_pallets_b=None, remaining_sheets_b=None):
+    if num_pallets_b is None:
+        num_pallets_b = 0
+    if remaining_sheets_b is None:
+        remaining_sheets_b = 0
+    
     template_wb = openpyxl.load_workbook('JO&EP Template.xlsx')
     template_ws = template_wb["SABLON"]
 
@@ -264,7 +269,7 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
             template_ws.cell(row=row_ah79, column=34).value = i + 1
             template_ws.cell(row=row_AL79, column=38).value = num_pallets_b
 
-            sheets_per_pallet = int(source_ws.cell(row=current_b_row, column=14).value)
+            sheets_per_pallet = int(source_ws.cell(row=current_b_row, column=13).value)
         
             if i == num_pallets_b - 1:
                 remaining_sheets = total_sheets_b - (sheets_per_pallet * (num_pallets_b - 1))
@@ -361,27 +366,23 @@ consecutive_a_rows = []
 
 for row in range(start_row, end_row + 1):
     job_type = source_ws["Q" + str(row)].value
-    current_a_row = row
+    current_b_row = row
     if job_type == 'A':
-        if current_a_row:
-           # Calculate the number of pallets and remaining sheets for Job A
-            source_value_p = source_ws["P" + str(current_a_row)].value
-            source_value_m = source_ws["M" + str(current_a_row)].value
-            num_pallets_a = math.ceil(source_value_p / source_value_m) if source_value_m else 0
-            remaining_sheets_a = source_value_p - num_pallets_a * source_value_m
-
-            
-            populate_and_save_template(current_a_row, None, num_pallets_a, remaining_sheets_a)
-            consecutive_a_rows.append(current_a_row)
         current_a_row = row
-
+        # Calculate the number of pallets and remaining sheets for Job A
+        source_value_p = source_ws["P" + str(current_a_row)].value
+        source_value_m = source_ws["M" + str(current_a_row)].value
+        num_pallets_a = math.ceil(source_value_p / source_value_m) if source_value_m else 0
+        remaining_sheets_a = source_value_p - num_pallets_a * source_value_m
+        # Save a separate file for the 'A' job
+        populate_and_save_template(current_a_row, None, num_pallets_a, remaining_sheets_a)
     elif job_type == 'B' and current_a_row:
         # Calculate the number of pallets and remaining sheets for Job B
         source_value_p = source_ws["P" + str(row)].value
         source_value_m = source_ws["M" + str(row)].value
         num_pallets_b = math.ceil(source_value_p / source_value_m) if source_value_m else 0
         remaining_sheets_b = source_value_p - num_pallets_b * source_value_m
-        
-        populate_and_save_template(current_a_row, row, num_pallets_a, remaining_sheets_a, num_pallets_b, remaining_sheets_b)
+        # Save a separate file for the 'A' job paired with the 'B' job
+        populate_and_save_template(current_a_row, current_b_row, num_pallets_a, remaining_sheets_a, num_pallets_b, remaining_sheets_b)
 
 print("All files created successfully!")
