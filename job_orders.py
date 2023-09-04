@@ -19,7 +19,7 @@ def get_top_left_cell_of_merged_region(worksheet, cell_address):
     return worksheet[cell_address]
 
 # Ensure the "New Job Orders" directory exists
-output_dir = "New Job Orders"
+output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "New Job Orders")
 if not os.path.exists(output_dir):
     os.mkdir(output_dir)
 
@@ -52,19 +52,19 @@ anchor_b = ['AP27', 'AG45', 'AJ23', 'AP46']
 
 # Mapping for Job B
 mapping = {
-    "H": "N5",
-    "I": "N6",
-    "B": "N7",
-    "P": ["N8", "N22"],
-    "X": "N9",
-    "T": "N13",
-    "U": "N14",
-    "W": "L16",
-    "V": "G18",
-    "S": "K19",
-    "M": "N23",
-    "O": "N24",  # Note: The logic for "N24" involves data from columns P and M
-    "R": "G30"
+    "H": "N5", # Denumire client
+    "I": "N6", # Cod produs
+    "B": "N7", # Numar comanda client
+    "P": ["N8", "N22"], # Cantitate de extrudat
+    "X": "N9", # Greutate totala de extrudat
+    "T": "N13", # Lungime
+    "U": "N14", # Latime
+    "W": "L16", # Densitate
+    "V": "G18", # Grosime
+    "S": "K19", # Culoare
+    "M": "N23", # Coli / palet
+    "O": "N24",  # Numar paleti (P/M)
+    "R": "G30" # Cod reteta
 }
 
 # Mapping for Job A
