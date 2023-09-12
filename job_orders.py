@@ -19,7 +19,9 @@ def get_top_left_cell_of_merged_region(worksheet, cell_address):
     return worksheet[cell_address]
 
 # Ensure the "New Job Orders" directory exists
-output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "New Job Orders")
+# output_dir = r"C:\Users\gabri\Desktop\Job Orders Tests\New Job Orders"
+output_dir = r"L:\1_EXTRUDARE\01. PLANIFICARE PRODUCTIE\1. CALENDAR COMENZI PRODUCTIE\Script&ETICHETE\Job Orders\New Job Orders"
+# output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "New Job Orders")
 if not os.path.exists(output_dir):
     os.mkdir(output_dir)
 
@@ -28,11 +30,7 @@ source_wb = openpyxl.load_workbook("EVIDENTA COMANDA ALVEOPLAST.xlsx")
 source_ws = source_wb["COMENZI ALVEOPLAST"]
 
 start_row = int(input("Enter the starting row: "))
-col_to_check = 'H'
-for row in range(start_row, source_ws.max_row + 1):
-    if not source_ws[col_to_check + str(row)].value:
-        end_row = row - 1
-        break
+end_row = int(input("Enter the ending row: "))
 
 def copy_range(src_ws, dest_ws, src_range, dest_cell):
     copied_images = []  # Create a list to store copied images
@@ -50,39 +48,58 @@ images = ["Images/BGMalveoplast Logo.jpeg", "Images/Energie Verde.jpeg", "Images
 anchor_a = ['AD27', 'U45', 'X23', 'AD46']
 anchor_b = ['AP27', 'AG45', 'AJ23', 'AP46']
 
+# Mapping for new Job Oreder Template file
 # Mapping for Job B
 mapping = {
-    "H": "N5", # Denumire client
-    "I": "N6", # Cod produs
-    "B": "N7", # Numar comanda client
-    "P": ["N8", "N22"], # Cantitate de extrudat
-    "X": "N9", # Greutate totala de extrudat
-    "T": "N13", # Lungime
-    "U": "N14", # Latime
-    "W": "L16", # Densitate
-    "V": "G18", # Grosime
-    "S": "K19", # Culoare
-    "M": "N23", # Coli / palet
-    "O": "N24",  # Numar paleti (P/M)
-    "R": "G30" # Cod reteta
+    "H": "J49", # Denumire client
+    "I": "J51", # Cod produs
+    "B": "J50", # Numar comanda client
+    "P": ["J16", "J53"], # Cantitate de extrudat
+    # "X": "J17", # Greutate totala de extrudat
+    "T": "J4", # Lungime
+    "U": "J5", # Latime
+    "W": "J9", # Densitate
+    "V": "J7", # Grosime
+    "S": "J11", # Culoare
+    "M": "J19", # Coli / palet
+    # "O": "N24",  # Numar paleti (P/M)
+    "R": "L23" # Cod reteta
 }
 
 # Mapping for Job A
 mapping_job_a = {
-    "H": "G5",
-    "I": "G6",
-    "B": "G7",
-    "P": ["G8", "G22"],
-    "X": "G9",
-    "T": "G13",
-    "U": "G14",
-    "W": "L16",
-    "V": "G18",
-    "S": "G19",
-    "M": "G23",
-    "O": "G24",  # Note: The logic for "G24" involves data from columns P and M
-    "R": "G30"
+    "H": "N49", # Denumire client
+    "I": "N51", # Cod produs
+    "B": "N50", # Numar comanda client
+    "P": ["N16", "N53"], # Cantitate de extrudat
+    # "X": "J17", # Greutate totala de extrudat
+    "T": "N4", # Lungime
+    "U": "N5", # Latime
+    "W": "J9", # Densitate
+    "V": "J7", # Grosime
+    "S": "J11", # Culoare
+    "M": "N19", # Coli / palet
+    # "O": "N24",  # Numar paleti (P/M)
+    "R": "L23" # Cod reteta
 }
+
+def load_r_mapping_from_file(filename, color_value):
+    r_mapping = {}
+    with open(filename, 'r') as file:
+        current_key = None
+        for line in file:
+            line = line.strip()
+            if not line:
+                continue
+            if line.endswith(':'):
+                current_key = line[:-1]
+                r_mapping[current_key] = {}
+            else:
+                cell, value = line.split('=', 1)
+                # Replace the color placeholder with the actual color value
+                value = value.replace('{color}', color_value)
+                r_mapping[current_key][cell.strip()] = value.strip()
+    return r_mapping
 
 def sanitize_filename(filename):
     """Sanitize filenames."""
@@ -95,7 +112,7 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
     if remaining_sheets_b is None:
         remaining_sheets_b = 0
     
-    template_wb = openpyxl.load_workbook('JO&EP Template.xlsx')
+    template_wb = openpyxl.load_workbook('JO&EP Template 2.xlsx')
     template_ws = template_wb["SABLON"]
 
     for col, dest_cells in mapping_job_a.items():
@@ -103,107 +120,26 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
             dest_cells = [dest_cells]
         for dest_cell in dest_cells:
             top_left_cell = get_top_left_cell_of_merged_region(template_ws, dest_cell)
-            # Logic for G9
-            if dest_cell == "G9":
-                calculated_value = 0  # or any default value you see fit
-                try:
-                    source_value_p = float(source_ws["P" + str(job_a_row)].value or 0)
-                    source_value_x = float(source_ws["W" + str(job_a_row)].value or 0)
-                    source_value_t = float(source_ws["T" + str(job_a_row)].value or 0)
-                    source_value_u = float(source_ws["U" + str(job_a_row)].value or 0)
-                    calculated_value = source_value_p * source_value_x / 1000 * source_value_t * source_value_u / 1000000
-                    top_left_cell.value = calculated_value
-                except ValueError:
-                    top_left_cell.value = "Error"  # or any other default value or action you want to happen in case of an error
-                top_left_cell.value = calculated_value
-
-            # Logic for G24
-            elif dest_cell == "G24":
-                source_value_p = source_ws["P" + str(job_a_row)].value
-                source_value_m = source_ws["M" + str(job_a_row)].value
-                calculated_value = source_value_p / source_value_m if source_value_m else 0
-                top_left_cell.value = calculated_value
-
+        
             # Default logic
-            else:
-                source_value = source_ws[col + str(job_a_row)].value
-                top_left_cell.value = source_value
+            source_value = source_ws[col + str(job_a_row)].value
+            top_left_cell.value = source_value
+
     if job_b_row:  # Only proceed if there's a B job
         for col, dest_cells in mapping.items():
             if not isinstance(dest_cells, list):
                 dest_cells = [dest_cells]
             for dest_cell in dest_cells:
                 top_left_cell = get_top_left_cell_of_merged_region(template_ws, dest_cell)
-                # Logic for N9
-                if dest_cell == "N9":
-                    calculated_value = 0  # or any default value you see fit
-                    try:
-                        source_value_p = float(source_ws["P" + str(job_b_row)].value or 0)
-                        source_value_x = float(source_ws["W" + str(job_b_row)].value or 0)
-                        source_value_t = float(source_ws["T" + str(job_b_row)].value or 0)
-                        source_value_u = float(source_ws["U" + str(job_b_row)].value or 0)
-                        calculated_value = source_value_p * source_value_x / 1000 * source_value_t * source_value_u / 1000000
-                        top_left_cell.value = calculated_value
-                    except ValueError:
-                        top_left_cell.value = "Error"  # or any other default value or action you want to happen in case of an error
-                    top_left_cell.value = calculated_value
-
-                # Logic for N24
-                elif dest_cell == "N24":
-                    source_value_p = source_ws["P" + str(job_b_row)].value
-                    source_value_m = source_ws["M" + str(job_b_row)].value
-                    calculated_value = source_value_p / source_value_m if source_value_m else 0
-                    top_left_cell.value = calculated_value
-
+            
                 # Default logic
-                else:
-                    source_value = source_ws[col + str(job_b_row)].value
-                    top_left_cell.value = source_value
+                source_value = source_ws[col + str(job_b_row)].value
+                top_left_cell.value = source_value
+
     # Mapping for values in column R
-    r_mapping = {
-        "A": {
-            "C32": "100%",
-            "D32": "Virgin PPC3600"
-        },
-        "B": {
-            "C32": "78%",
-            "C33": "15%",
-            "C34": "2%",
-            "C35": "5%",
-            "D32": "Virgin PPC3600",
-            "D33": "Carbonat",
-            "D34": "Virgin PPC3600",
-            "D35": "TALC"
-        },
-        "ESDt": {
-            "C32": "27%",
-            "C33": "20%",
-            "C36": "53%",
-            "D32": "Virgin PPC3600",
-            "D33": "REGRANULAT",
-            "D36": "PREMIX"
-        },
-        "D": {
-            "C32": "43%",
-            "C33": "55%",
-            "C34": "2%",
-            "D32": "Virgin PPC3600",
-            "D33": "REGRANULAT",
-            "D34": "CULOARE/" + source_ws["S" + str(job_a_row)].value
-        },
-        "E": {
-            "C32": "13%",
-            "C33": "45%",
-            "C34": "2%",
-            "C35": "20%",
-            "C36": "20%",
-            "D32": "Virgin PPC3600",
-            "D33": "REGRANULAT A",
-            "D34": "CULOARE/" + source_ws["S" + str(job_a_row)].value,
-            "D35": "1 parte TALC + 3 parti Carbonat",
-            "D36": "REGRANULAT B"
-        }
-    }
+    color_value = source_ws["S" + str(job_a_row)].value
+
+    r_mapping = load_r_mapping_from_file("Retete.txt", color_value)
 
     # Check value in column R for job A
     r_value_a = source_ws["R" + str(job_a_row)].value
@@ -357,7 +293,8 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
         filepath = os.path.join(os.path.dirname(__file__), output_dir, filename)
         counter += 1
     template_wb.save(filepath)
-    print(f"Saved: {filename}")
+    # print(f"Saved: {filename}")
+    print(f"Saved {filepath}")
 
 # Main Loop Logic
 current_a_row = None
