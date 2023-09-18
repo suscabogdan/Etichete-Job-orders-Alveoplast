@@ -31,6 +31,8 @@ source_ws = source_wb["COMENZI ALVEOPLAST"]
 
 start_row = int(input("Enter the starting row: "))
 end_row = int(input("Enter the ending row: "))
+# start_row = 847
+# end_row = 848
 
 def copy_range(src_ws, dest_ws, src_range, dest_cell):    
     rows = src_ws[src_range]
@@ -45,8 +47,8 @@ def copy_range(src_ws, dest_ws, src_range, dest_cell):
 
 # Create an array of images
 images = ["Images/Alveoplast.png", "Images/Energie Verde.jpeg", "Images/PP.png", "Images/SARC.png"]
-anchor_a = ['P98', 'C104', 'L74', 'P73']
-anchor_b = ['AG45', 'T47', 'AD18', 'AG19']
+anchor_a = ['AG42', 'T47', 'AD20', 'AG18']
+anchor_b = ['AX42', 'AK47', 'AU20', 'AX18']
 
 # Mapping for new Job Oreder Template file
 # Mapping for Job B
@@ -161,41 +163,41 @@ def populate_and_save_template(job_a_row, job_b_row, num_pallets_a, remaining_sh
     total_sheets_a = int(source_ws.cell(row=job_a_row, column=16).value)
     total_sheets_b = int(source_ws.cell(row=job_b_row, column=16).value) if job_b_row else 0
 
-    # Copy and paste the Job A template the correct number of times
-    if job_a_row:
-        for i in range(num_pallets_a):
-            # Copy the Job A template
-            src_range = "A58:Q113"
-            dest_cell = "A" + str(114 + i * 56)
-            copy_range(template_ws, template_ws, src_range, dest_cell)
-
-    # Write the correct information into the Job A labels
-    if job_a_row:
-        for i in range(num_pallets_a):
-            row_v79 = 159 + i * 56
-            row_AA79 = 159 + i * 56
-
-            template_ws.cell(row=row_v79, column=8).value = i + 1
-            template_ws.cell(row=row_AA79, column=12).value = num_pallets_a
-
     # Copy and paste the Job B template the correct number of times
-    if job_b_row and current_b_row:
+    if job_b_row:
         for i in range(num_pallets_b):
-            # Copy the Job B template
-            src_range = "R1:AH56"
-            dest_cell = "R" + str(58 + i * 56)
+            # Copy the Job A template
+            src_range = "AI1:AY56"
+            dest_cell = "AI" + str(59 + i * 57)
             copy_range(template_ws, template_ws, src_range, dest_cell)
 
     # Write the correct information into the Job B labels
-    if job_b_row and current_b_row:
+    if job_b_row:
         for i in range(num_pallets_b):
-            row_ah79 = 103 + i * 56
-            row_AL79 = 103 + i * 56
+            row_v79 = 104 + i * 57
+            row_AA79 = 104 + i * 57
+
+            template_ws.cell(row=row_v79, column=42).value = i + 1
+            template_ws.cell(row=row_AA79, column=46).value = num_pallets_b
+
+    # Copy and paste the Job A template the correct number of times
+    if job_a_row and current_a_row:
+        for i in range(num_pallets_a):
+            # Copy the Job B template
+            src_range = "R1:AH56"
+            dest_cell = "R" + str(59 + i * 57)
+            copy_range(template_ws, template_ws, src_range, dest_cell)
+
+    # Write the correct information into the Job A labels
+    if job_a_row and current_a_row:
+        for i in range(num_pallets_a):
+            row_ah79 = 104 + i * 57
+            row_AL79 = 104 + i * 57
 
             template_ws.cell(row=row_ah79, column=25).value = i + 1
-            template_ws.cell(row=row_AL79, column=29).value = num_pallets_b
+            template_ws.cell(row=row_AL79, column=29).value = num_pallets_a
     
-    cell_interval = 56
+    cell_interval = 57
 
     for i in range(num_pallets_a + 1):
         for j, (img_name, anchor) in enumerate(zip(images, anchor_a)):
