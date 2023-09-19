@@ -30,10 +30,10 @@ if not os.path.exists(output_dir):
 source_wb = openpyxl.load_workbook("EVIDENTA COMANDA ALVEOPLAST.xlsx")
 source_ws = source_wb["COMENZI ALVEOPLAST"]
 
-# start_row = int(input("Enter the starting row: "))
-# end_row = int(input("Enter the ending row: "))
-start_row = 847
-end_row = 848
+start_row = int(input("Enter the starting row: "))
+end_row = int(input("Enter the ending row: "))
+# start_row = 847
+# end_row = 848
 
 # Updated copy_range function to handle new ranges
 def copy_range(src_ws, dest_ws, src_range, dest_cell, offset_row=0, offset_col=0):    
